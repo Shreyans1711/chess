@@ -20,7 +20,8 @@ import {
 
 /** Owns the game state and lays out the board with its side panel. */
 export function Board() {
-  const { board, selected, selectSquare, dropPiece, newGame } = useGame();
+  const { board, selected, canPickUp, selectSquare, dropPiece, newGame } =
+    useGame();
   const { drag, startDrag } = usePieceDrag(dropPiece);
 
   function handleSquarePointerDown(
@@ -28,8 +29,8 @@ export function Board() {
     event: PointerEvent<HTMLButtonElement>,
   ) {
     const piece = getPiece(board, square);
-    // Left mouse button (or touch / pen) on a piece only.
-    if (!piece || event.button !== 0) return;
+    // Left mouse button (or touch / pen) on a piece of the side to move only.
+    if (!piece || !canPickUp(square) || event.button !== 0) return;
 
     startDrag({
       from: square,

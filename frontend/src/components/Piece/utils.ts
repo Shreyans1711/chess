@@ -20,3 +20,7 @@ export function getStartingPiece({ file, rank }: Square): Piece | null {
       return null;
   }
 }
+
+export function getOpponent(color: Color): Color {
+  return color === Color.White ? Color.Black : Color.White;
+}

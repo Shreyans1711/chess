@@ -36,6 +36,12 @@ export function createStartingBoard(): Board {
   );
 }
 
+export function getAllSquares(): Square[] {
+  return BOARD_INDEXES.flatMap((rank) =>
+    BOARD_INDEXES.map((file) => ({ file, rank })),
+  );
+}
+
 export function getPiece(board: Board, { file, rank }: Square): Piece | null {
   return board[rank][file];
 }
