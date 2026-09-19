@@ -11,10 +11,12 @@
 /* Page background only. The theme button in page.tsx sets data-theme="dark" on <html>. */
 :root {
   --page-background: #f3f3f0;
+  --page-foreground: #262421;
 }
 
 :root[data-theme="dark"] {
   --page-background: #302e2b; /* chess.com dark background */
+  --page-foreground: #ffffff;
 }
 
 body {

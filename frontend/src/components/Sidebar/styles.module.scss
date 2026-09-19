@@ -1,0 +1,50 @@
+// Fixed colours (not theme tokens) so the sidebar reads on both backgrounds.
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 220px;
+  flex-shrink: 0;
+  padding: 16px 12px;
+  background-color: #262421;
+  color: #ffffff;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+}
+
+.home {
+  padding: 0 8px;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.link {
+  display: block;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+
+  &:hover {
+    background-color: #3c3a37;
+  }
+}
+
+.active {
+  background-color: #769656;
+
+  &:hover {
+    background-color: #769656;
+  }
+}
