@@ -27,12 +27,22 @@ export enum CastlingSide {
  */
 export type CastlingRights = Record<Color, Record<CastlingSide, boolean>>;
 
+export type CastlingFiles = {
+  king: number;
+  rooks: Record<CastlingSide, number>;
+};
+
 /**
  * What a move's legality depends on besides the pieces on the board: the
  * special moves that need to remember the past.
  */
 export type MoveContext = {
   castlingRights: CastlingRights;
+  /**
+   * The files the king and each castling rook start on. Fixed for the whole
+   * game: e, a and h in standard chess, but different in every Chess960 game.
+   */
+  castlingFiles: CastlingFiles;
   /**
    * The square a pawn just skipped over with a two-square push (e3 after
    * e2-e4), where an enemy pawn may capture it en passant. It only lasts for

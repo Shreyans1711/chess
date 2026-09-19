@@ -1,5 +1,6 @@
 import { getStartingPiece } from "@/components/Piece/utils";
-import type { Piece } from "@/components/Piece/types";
+import { STANDARD_BACK_RANK } from "@/components/Piece/constants";
+import type { Piece, PieceType } from "@/components/Piece/types";
 import { BOARD_INDEXES, FILE_NAMES } from "./constants";
 import type { Board, Move, MoveResult, Square } from "./types";
 
@@ -30,9 +31,11 @@ export function isSquare(a: Square | null, b: Square): boolean {
   return a !== null && isSameSquare(a, b);
 }
 
-export function createStartingBoard(): Board {
+export function createStartingBoard(
+  backRank: readonly PieceType[] = STANDARD_BACK_RANK,
+): Board {
   return BOARD_INDEXES.map((rank) =>
-    BOARD_INDEXES.map((file) => getStartingPiece({ file, rank })),
+    BOARD_INDEXES.map((file) => getStartingPiece({ file, rank }, backRank)),
   );
 }
 

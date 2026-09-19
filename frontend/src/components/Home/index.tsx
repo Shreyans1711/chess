@@ -1,4 +1,4 @@
-import { USER_NAME } from "@/user/constants";
+import { USER_NAME } from "@/constant";
 import styles from "./styles.module.scss";
 
 export function Home() {

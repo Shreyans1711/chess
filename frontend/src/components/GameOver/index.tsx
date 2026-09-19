@@ -1,7 +1,7 @@
 import { NewGameButton } from "@/components/NewGameButton";
 import { getOpponent } from "@/components/Piece/utils";
 import { GameStatus } from "@/rules/types";
-import { capitalize } from "@/utils/capitalize";
+import { capitalize } from "@/utils";
 import styles from "./styles.module.scss";
 import type { GameOverProps } from "./types";
 

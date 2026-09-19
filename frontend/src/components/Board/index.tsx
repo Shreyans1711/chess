@@ -11,7 +11,7 @@ import { useGame } from "@/hooks/useGame";
 import { usePieceDrag } from "@/hooks/usePieceDrag";
 import { BOARD_INDEXES, RANKS_TOP_TO_BOTTOM } from "./constants";
 import styles from "./styles.module.scss";
-import type { Square } from "./types";
+import type { BoardProps, Square } from "./types";
 import {
   fileName,
   getPiece,
@@ -22,7 +22,7 @@ import {
 } from "./utils";
 
 /** Owns the game state and lays out the board with its side panel. */
-export function Board() {
+export function Board({ variant }: BoardProps) {
   const {
     board,
     selected,
@@ -37,7 +37,7 @@ export function Board() {
     completePromotion,
     cancelPromotion,
     newGame,
-  } = useGame();
+  } = useGame(variant);
   const { drag, startDrag } = usePieceDrag(dropPiece);
 
   function handleSquarePointerDown(

@@ -1,15 +1,35 @@
-import type { Variant } from "./types";
+import { createStartingBoard } from "@/components/Board/utils";
+import { STANDARD_BACK_RANK } from "@/components/Piece/constants";
+import type { PieceType } from "@/components/Piece/types";
+import { createMoveContext } from "@/rules/utils";
+import { createChess960BackRank } from "./chess960";
+import type { NewGame, Variant } from "./types";
 
-// Placeholder names: rename a variant here and its route folder in app/.
+function createGameFrom(backRank: readonly PieceType[]): NewGame {
+  return {
+    board: createStartingBoard(backRank),
+    context: createMoveContext(backRank),
+  };
+}
+
+const createStandardGame = () => createGameFrom(STANDARD_BACK_RANK);
+
+// Add a game here and it gets its route and its sidebar link. Slots 3-10 are
+// placeholders for the standard game.
 export const VARIANTS: Variant[] = [
-  { slug: "original", name: "Original" },
-  { slug: "variant-2", name: "Original" },
-  { slug: "variant-3", name: "Original" },
-  { slug: "variant-4", name: "Original" },
-  { slug: "variant-5", name: "Original" },
-  { slug: "variant-6", name: "Original" },
-  { slug: "variant-7", name: "Original" },
-  { slug: "variant-8", name: "Original" },
-  { slug: "variant-9", name: "Original" },
-  { slug: "variant-10", name: "Original" },
+  { 
+    slug: "original", 
+    name: "Original", 
+    createGame: createStandardGame 
+  },
+  {
+    slug: "chess960",
+    name: "Chess960",
+    createGame: () => createGameFrom(createChess960BackRank()),
+  },
+  ...[3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({
+    slug: `variant-${n}`,
+    name: "Original",
+    createGame: createStandardGame,
+  })),
 ];

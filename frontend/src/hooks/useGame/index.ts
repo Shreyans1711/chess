@@ -1,14 +1,10 @@
 import { useState } from "react";
 import type { Move, Square } from "@/components/Board/types";
-import {
-  createStartingBoard,
-  getPiece,
-  isSameSquare,
-} from "@/components/Board/utils";
+import { getPiece, isSameSquare } from "@/components/Board/utils";
 import { Color, type PieceType } from "@/components/Piece/types";
 import { getOpponent } from "@/components/Piece/utils";
-import { INITIAL_MOVE_CONTEXT } from "@/rules/constants";
 import { GameStatus } from "@/rules/types";
+import type { Variant } from "@/variants/types";
 import {
   applyMove,
   canThePieceMove,
@@ -21,15 +17,16 @@ import {
 } from "@/rules/utils";
 
 /** All the state of one game, and the actions that change it. */
-export function useGame() {
-  const [board, setBoard] = useState(createStartingBoard);
+export function useGame({ createGame }: Variant) {
+  const [start] = useState(createGame);
+  const [board, setBoard] = useState(start.board);
   const [selected, setSelected] = useState<Square | null>(null);
   const [turn, setTurn] = useState(Color.White);
   // A pawn move waiting for the player to choose what it becomes.
   const [pendingPromotion, setPendingPromotion] = useState<Move | null>(null);
 
   // Castling rights and the en passant square: what the board can't show.
-  const [context, setContext] = useState(INITIAL_MOVE_CONTEXT);
+  const [context, setContext] = useState(start.context);
   const [history, setHistory] = useState(() =>
     createHistory(board, turn, context),
   );
@@ -50,7 +47,7 @@ export function useGame() {
 
   // Plays the move and hands the turn to the other player.
   function playMove(move: Move, promotion?: PieceType) {
-    const result = applyMove(board, move, promotion);
+    const result = applyMove(board, move, context, promotion);
     const nextTurn = getOpponent(turn);
     const nextContext = updateMoveContext(context, board, move);
 
@@ -103,14 +100,14 @@ export function useGame() {
   }
 
   function newGame() {
-    const startingBoard = createStartingBoard();
+    const { board: startingBoard, context: startingContext } = createGame();
 
     setBoard(startingBoard);
     setSelected(null);
     setPendingPromotion(null);
     setTurn(Color.White);
-    setContext(INITIAL_MOVE_CONTEXT);
-    setHistory(createHistory(startingBoard, Color.White, INITIAL_MOVE_CONTEXT));
+    setContext(startingContext);
+    setHistory(createHistory(startingBoard, Color.White, startingContext));
   }
 
   return {

@@ -1,4 +1,5 @@
 import type { Piece } from "@/components/Piece/types";
+import type { Variant } from "@/variants/types";
 
 /**
  * Square coordinates, zero-based:
@@ -27,4 +28,8 @@ export type Move = {
 export type MoveResult = {
   board: Board;
   captured: Piece | null;
+};
+
+export type BoardProps = {
+  variant: Variant;
 };

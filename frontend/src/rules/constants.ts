@@ -3,8 +3,6 @@ import {
   CastlingSide,
   PawnDirection,
   PawnStartRank,
-  type CastlingRights,
-  type MoveContext,
 } from "./types";
 
 export const PAWN_FORWARD: Record<Color, PawnDirection> = {
@@ -43,14 +41,6 @@ export const BACK_RANK: Record<Color, number> = {
   [Color.Black]: 7,
 };
 
-/** The e-file: where the king starts, and so where castling starts from. */
-export const KING_HOME_FILE = 4;
-
-export const ROOK_HOME_FILE: Record<CastlingSide, number> = {
-  [CastlingSide.KingSide]: 7,
-  [CastlingSide.QueenSide]: 0,
-};
-
 /** Where the king lands when castling (g-file or c-file). */
 export const KING_CASTLE_FILE: Record<CastlingSide, number> = {
   [CastlingSide.KingSide]: 6,
@@ -61,21 +51,4 @@ export const KING_CASTLE_FILE: Record<CastlingSide, number> = {
 export const ROOK_CASTLE_FILE: Record<CastlingSide, number> = {
   [CastlingSide.KingSide]: 5,
   [CastlingSide.QueenSide]: 3,
-};
-
-const ALL_SIDES = {
-  [CastlingSide.KingSide]: true,
-  [CastlingSide.QueenSide]: true,
-};
-
-/** Everyone may castle either way, as at the start of a game. */
-const INITIAL_CASTLING_RIGHTS: CastlingRights = {
-  [Color.White]: ALL_SIDES,
-  [Color.Black]: ALL_SIDES,
-};
-
-/** The special-move state at the start of a game. */
-export const INITIAL_MOVE_CONTEXT: MoveContext = {
-  castlingRights: INITIAL_CASTLING_RIGHTS,
-  enPassantTarget: null,
 };

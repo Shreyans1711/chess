@@ -15,8 +15,8 @@ import {
   FIFTY_MOVE_HALFMOVES,
   PROMOTION_RANK,
   REPETITION_LIMIT,
+  KING_CASTLE_FILE,
   ROOK_CASTLE_FILE,
-  ROOK_HOME_FILE,
 } from "./constants";
 import { PIECE_RULES } from "./pieceRules";
 import {
@@ -25,6 +25,7 @@ import {
   GameStatus,
   type CastlingRights,
   type GameHistory,
+  type CastlingFiles,
   type GameOutcome,
   type MoveContext,
   type MoveTest,
@@ -138,7 +139,7 @@ export function isValidTarget(
     return false;
   }
 
-  return !isInCheck(applyMove(board, move).board, piece.color);
+  return !isInCheck(applyMove(board, move, context).board, piece.color);
 }
 
 /** Would this move take a pawn to the last rank? */
@@ -152,8 +153,7 @@ export function isPromotionMove(board: Board, { from, to }: Move): boolean {
 /**
  * Plays the move on a copy of the board. This is `movePiece`, plus the moves
  * that change more than the piece itself:
- * - castling (a king travelling two files): its rook jumps to the other
- *   side of it;
+ * - castling: the king and its rook both land on their castled squares;
  * - en passant (a pawn stepping diagonally onto an empty square): the pawn it
  *   passed is removed, and reported as `captured`;
  * - promotion (a pawn reaching the last rank): pass `promotion` and the
@@ -162,12 +162,30 @@ export function isPromotionMove(board: Board, { from, to }: Move): boolean {
 export function applyMove(
   board: Board,
   move: Move,
+  context: MoveContext,
   promotion?: PieceType,
 ): MoveResult {
   const { from, to } = move;
   const piece = getPiece(board, from);
+  if (!piece) return movePiece(board, move);
+
+  const side = getCastlingSide(board, move, context);
+  if (side) {
+    const rookFrom = {
+      file: context.castlingFiles.rooks[side],
+      rank: from.rank,
+    };
+    const kingTo = { file: KING_CASTLE_FILE[side], rank: from.rank };
+    const rookTo = { file: ROOK_CASTLE_FILE[side], rank: from.rank };
+    // Lift both pieces first: in Chess960 a destination can be where the
+    // other piece stands.
+    let castled = setPiece(setPiece(board, from, null), rookFrom, null);
+    castled = setPiece(castled, kingTo, piece);
+    castled = setPiece(castled, rookTo, getPiece(board, rookFrom));
+    return { board: castled, captured: null };
+  }
+
   const result = movePiece(board, move);
-  if (!piece) return result;
 
   let newBoard = result.board;
   let captured = result.captured;
@@ -180,14 +198,6 @@ export function applyMove(
     const passedPawn = { file: to.file, rank: from.rank };
     captured = getPiece(board, passedPawn);
     newBoard = setPiece(newBoard, passedPawn, null);
-  }
-
-  if (piece.type === PieceType.King && fileDistance(from, to) === 2) {
-    const side =
-      to.file > from.file ? CastlingSide.KingSide : CastlingSide.QueenSide;
-    const rookFrom = { file: ROOK_HOME_FILE[side], rank: from.rank };
-    const rookTo = { file: ROOK_CASTLE_FILE[side], rank: from.rank };
-    newBoard = movePiece(newBoard, { from: rookFrom, to: rookTo }).board;
   }
 
   if (promotion) {
@@ -204,6 +214,7 @@ export function applyMove(
  */
 function updateCastlingRights(
   castlingRights: CastlingRights,
+  castlingFiles: CastlingFiles,
   before: Board,
   { from, to }: Move,
 ): CastlingRights {
@@ -213,7 +224,10 @@ function updateCastlingRights(
     const kingMoved = mover?.type === PieceType.King && mover.color === color;
 
     function isKept(side: CastlingSide): boolean {
-      const rookHome = { file: ROOK_HOME_FILE[side], rank: BACK_RANK[color] };
+      const rookHome = {
+        file: castlingFiles.rooks[side],
+        rank: BACK_RANK[color],
+      };
       return (
         castlingRights[color][side] &&
         !kingMoved &&
@@ -256,9 +270,69 @@ export function updateMoveContext(
   move: Move,
 ): MoveContext {
   return {
-    castlingRights: updateCastlingRights(context.castlingRights, before, move),
+    castlingRights: updateCastlingRights(
+      context.castlingRights,
+      context.castlingFiles,
+      before,
+      move,
+    ),
+    castlingFiles: context.castlingFiles,
     enPassantTarget: getEnPassantTarget(before, move),
   };
+}
+
+/**
+ * The special-move state at the start of a game whose back rank is laid out
+ * as `backRank` (a-file to h-file): everyone may castle either way, with the
+ * rooks on either side of the king.
+ */
+export function createMoveContext(backRank: readonly PieceType[]): MoveContext {
+  const allSides = {
+    [CastlingSide.KingSide]: true,
+    [CastlingSide.QueenSide]: true,
+  };
+
+  return {
+    castlingRights: { [Color.White]: allSides, [Color.Black]: allSides },
+    castlingFiles: {
+      king: backRank.indexOf(PieceType.King),
+      rooks: {
+        [CastlingSide.QueenSide]: backRank.indexOf(PieceType.Rook),
+        [CastlingSide.KingSide]: backRank.lastIndexOf(PieceType.Rook),
+      },
+    },
+    enPassantTarget: null,
+  };
+}
+
+/**
+ * Is this king move shaped like castling, and towards which side? It is when
+ * the king, still on its start file, moves onto its own castling rook, or two
+ * or more files to where it lands after castling. Whether castling is
+ * actually allowed is up to the king's rule.
+ */
+export function getCastlingSide(
+  board: Board,
+  { from, to }: Move,
+  context: MoveContext,
+): CastlingSide | null {
+  const king = getPiece(board, from);
+  const { castlingFiles } = context;
+  if (king?.type !== PieceType.King) return null;
+  if (from.rank !== BACK_RANK[king.color] || to.rank !== from.rank) return null;
+  if (from.file !== castlingFiles.king) return null;
+
+  const target = getPiece(board, to);
+  const isOwnRook =
+    target?.type === PieceType.Rook && target.color === king.color;
+
+  return (
+    Object.values(CastlingSide).find(
+      (side) =>
+        (isOwnRook && to.file === castlingFiles.rooks[side]) ||
+        (to.file === KING_CASTLE_FILE[side] && fileDistance(from, to) >= 2),
+    ) ?? null
+  );
 }
 
 /** Does `color` have at least one piece that can move? */

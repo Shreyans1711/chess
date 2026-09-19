@@ -1,18 +1,13 @@
 import type { Board, Move } from "@/components/Board/types";
-import { getPiece, isSameSquare } from "@/components/Board/utils";
+import { getPiece, isSameSquare, setPiece } from "@/components/Board/utils";
 import { PieceType } from "@/components/Piece/types";
 import { getOpponent } from "@/components/Piece/utils";
-import {
-  BACK_RANK,
-  KING_CASTLE_FILE,
-  KING_HOME_FILE,
-  ROOK_HOME_FILE,
-} from "../constants";
-import { CastlingSide, type CastlingRights, type PieceRule } from "../types";
+import { KING_CASTLE_FILE, ROOK_CASTLE_FILE } from "../constants";
+import type { MoveContext, PieceRule } from "../types";
 import {
   createRule,
   fileDistance,
-  isPathClear,
+  getCastlingSide,
   isSquareAttacked,
   rankDistance,
 } from "../utils";
@@ -22,36 +17,52 @@ const stepRule = createRule(
     Math.max(fileDistance(from, to), rankDistance(from, to)) === 1,
 );
 
+/** Every file from `a` to `b`, both included, whichever is larger. */
+function filesBetween(a: number, b: number): number[] {
+  const first = Math.min(a, b);
+  return Array.from({ length: Math.abs(a - b) + 1 }, (_, i) => first + i);
+}
+
 /**
- * Is the king on `from` allowed to castle by moving to `to`? Needs all of:
- * the right is intact, the king is home with its rook, nothing stands
- * between them, and the king is not in check, does not cross an attacked
- * square and does not land on one.
+ * Is the king on `from` allowed to castle with this move? Needs all of:
+ * the right is intact and the rook is still there, every square the king and
+ * the rook cross or land on is empty (apart from those two), and the king
+ * is not in check, does not cross an attacked square and does not land on
+ * one. This holds for any start files, so it covers Chess960 too.
  */
 function isCastlingTarget(
   board: Board,
-  { from, to }: Move,
-  castlingRights: CastlingRights,
+  move: Move,
+  context: MoveContext,
 ): boolean {
+  const { from } = move;
   const king = getPiece(board, from);
-  if (!king) return false;
+  const side = getCastlingSide(board, move, context);
+  if (!king || !side || !context.castlingRights[king.color][side]) return false;
 
-  const side = Object.values(CastlingSide).find(
-    (candidate) => KING_CASTLE_FILE[candidate] === to.file,
-  );
-  const home = { file: KING_HOME_FILE, rank: BACK_RANK[king.color] };
-  if (!side || to.rank !== home.rank || !isSameSquare(from, home)) return false;
-  if (!castlingRights[king.color][side]) return false;
-
-  const rookSquare = { file: ROOK_HOME_FILE[side], rank: home.rank };
-  const rook = getPiece(board, rookSquare);
+  const rank = from.rank;
+  const rookFrom = { file: context.castlingFiles.rooks[side], rank };
+  const rook = getPiece(board, rookFrom);
   if (rook?.type !== PieceType.Rook || rook.color !== king.color) return false;
-  if (!isPathClear(board, from, rookSquare)) return false;
 
-  const crossed = { file: (from.file + to.file) / 2, rank: home.rank };
+  const kingFiles = filesBetween(from.file, KING_CASTLE_FILE[side]);
+  const rookFiles = filesBetween(rookFrom.file, ROOK_CASTLE_FILE[side]);
+  const isFree = [...kingFiles, ...rookFiles].every((file) => {
+    const square = { file, rank };
+    return (
+      !getPiece(board, square) ||
+      isSameSquare(square, from) ||
+      isSameSquare(square, rookFrom)
+    );
+  });
+  if (!isFree) return false;
+
+  // Judge each square the king passes with both castling pieces off the
+  // board, so the rook cannot be shielding the king from an attacker.
+  const bare = setPiece(setPiece(board, from, null), rookFrom, null);
   const opponent = getOpponent(king.color);
-  return [from, crossed, to].every(
-    (square) => !isSquareAttacked(board, square, opponent),
+  return kingFiles.every(
+    (file) => !isSquareAttacked(bare, { file, rank }, opponent),
   );
 }
 
@@ -60,5 +71,5 @@ export const kingRule: PieceRule = {
   attacks: stepRule.attacks,
   isValidTarget: (board, move, context) =>
     stepRule.isValidTarget(board, move, context) ||
-    isCastlingTarget(board, move, context.castlingRights),
+    isCastlingTarget(board, move, context),
 };

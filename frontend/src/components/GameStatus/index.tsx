@@ -1,6 +1,6 @@
 import { getOpponent } from "@/components/Piece/utils";
 import { GameStatus as Status } from "@/rules/types";
-import { capitalize } from "@/utils/capitalize";
+import { capitalize } from "@/utils";
 import styles from "./styles.module.scss";
 import type { GameStatusProps } from "./types";
 
