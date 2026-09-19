@@ -1,0 +1,19 @@
+// Fixed colours (not theme tokens) so the button reads on both backgrounds.
+.themeToggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 6px;
+  background-color: #262421;
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.15);
+
+  &:hover {
+    background-color: #3c3a37;
+  }
+}

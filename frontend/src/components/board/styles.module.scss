@@ -1,4 +1,34 @@
 $board-max-size: 640px;
+$side-width: 220px;
+$gap: 24px;
+
+// Colours come from the design tokens in globals.css, so the palette is
+// defined in exactly one place.
+$light: var(--color-square-light);
+$dark: var(--color-square-dark);
+
+// Board on the left, panel on the right; the panel drops below the board
+// when the screen is too narrow for both.
+.game {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: $gap;
+  width: 100%;
+}
+
+.boardArea {
+  flex: 1 1 320px;
+  max-width: min(90vh, $board-max-size);
+}
+
+.side {
+  display: flex;
+  flex: 0 0 $side-width;
+  flex-direction: column;
+  gap: 16px;
+}
 
 // Square, shrinks to fit small screens, capped on large ones.
 .board {
@@ -9,4 +39,63 @@ $board-max-size: 640px;
   overflow: hidden;
   border-radius: 2px;
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.2);
+}
+
+// A <button> so squares are clickable and keyboard-accessible.
+// The resets below strip the browser's default button look.
+.square {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  // Dragging a piece must not scroll the page or select text.
+  touch-action: none;
+  user-select: none;
+}
+
+// Chess.com-style yellow highlight, laid over the square colour but
+// under the piece and labels.
+.selected {
+  background-image: linear-gradient(
+    rgb(255 255 51 / 0.5),
+    rgb(255 255 51 / 0.5)
+  );
+}
+
+.light {
+  background-color: $light;
+}
+
+.dark {
+  background-color: $dark;
+}
+
+.label {
+  position: absolute;
+  z-index: 1; // stay visible above a piece on the same square
+  font-size: clamp(0.6rem, 1.6vw, 0.9rem);
+  font-weight: 700;
+}
+
+.rank {
+  left: 4%;
+  top: 2%;
+}
+
+.file {
+  right: 4%;
+  bottom: 2%;
+}
+
+// Labels use the opposite square colour so they stay readable on both.
+.light .label {
+  color: $dark;
+}
+
+.dark .label {
+  color: $light;
 }

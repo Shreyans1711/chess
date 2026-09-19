@@ -1,0 +1,22 @@
+import type { Square } from "@/components/Board/types";
+import { STANDARD_BACK_RANK } from "./constants";
+import { Color, PieceType, type Piece } from "./types";
+
+/**
+ * Which piece stands on this square at the start of a standard game?
+ * (Ranks are zero-based: 0 = rank 1, 7 = rank 8.)
+ */
+export function getStartingPiece({ file, rank }: Square): Piece | null {
+  switch (rank) {
+    case 0:
+      return { type: STANDARD_BACK_RANK[file], color: Color.White };
+    case 1:
+      return { type: PieceType.Pawn, color: Color.White };
+    case 6:
+      return { type: PieceType.Pawn, color: Color.Black };
+    case 7:
+      return { type: STANDARD_BACK_RANK[file], color: Color.Black };
+    default:
+      return null;
+  }
+}

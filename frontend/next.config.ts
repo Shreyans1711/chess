@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Hides the "N" route indicator in dev. Errors are still shown.
+  devIndicators: false,
 };
 
 export default nextConfig;

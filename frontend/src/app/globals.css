@@ -1,8 +1,23 @@
 @import "tailwindcss";
 
-/* Design tokens. Tailwind turns --color-* into utilities, e.g. bg-square-dark.
-   Change a colour here and the whole board (and its labels) follows. */
-@theme {
-  --color-square-light: #eeeed2; /* chess.com classic green theme */
+/* Board colours: chess.com classic green theme. These are fixed and never
+   change with the page theme. Plain :root variables (not Tailwind's @theme)
+   so they are always emitted, even though only SCSS reads them. */
+:root {
+  --color-square-light: #eeeed2;
   --color-square-dark: #769656;
+}
+
+/* Page background only. The theme button in page.tsx sets data-theme="dark" on <html>. */
+:root {
+  --page-background: #f3f3f0;
+}
+
+:root[data-theme="dark"] {
+  --page-background: #302e2b; /* chess.com dark background */
+}
+
+body {
+  background-color: var(--page-background);
+  transition: background-color 0.2s ease;
 }

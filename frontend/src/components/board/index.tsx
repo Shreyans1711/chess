@@ -1,24 +1,105 @@
-import { BOARD_INDEXES } from "@/chess/board.constants";
-import { squareName } from "@/chess/board.utils";
+"use client";
+
+import type { PointerEvent } from "react";
+import { DragGhost } from "@/components/DragGhost";
+import { NewGameButton } from "@/components/NewGameButton";
+import { Piece } from "@/components/Piece";
+import { useGame } from "@/hooks/useGame";
+import { usePieceDrag } from "@/hooks/usePieceDrag";
+import { BOARD_INDEXES, RANKS_TOP_TO_BOTTOM } from "./constants";
 import styles from "./styles.module.scss";
-import { BoardSquare } from "@/components/BoardSquare";
+import type { Square } from "./types";
+import {
+  fileName,
+  getPiece,
+  isLightSquare,
+  isSquare,
+  rankName,
+  squareName,
+} from "./utils";
 
-// The DOM draws top-to-bottom, but rank 8 is at the top of the board,
-// so we walk ranks from 7 down to 0.
-const RANKS_TOP_TO_BOTTOM = [...BOARD_INDEXES].reverse();
-
+/** Owns the game state and lays out the board with its side panel. */
 export function Board() {
+  const { board, selected, selectSquare, dropPiece, newGame } = useGame();
+  const { drag, startDrag } = usePieceDrag(dropPiece);
+
+  function handleSquarePointerDown(
+    square: Square,
+    event: PointerEvent<HTMLButtonElement>,
+  ) {
+    const piece = getPiece(board, square);
+    // Left mouse button (or touch / pen) on a piece only.
+    if (!piece || event.button !== 0) return;
+
+    startDrag({
+      from: square,
+      piece,
+      x: event.clientX,
+      y: event.clientY,
+      size: event.currentTarget.getBoundingClientRect().width,
+    });
+  }
+
+  // Only treat it as a drag once the pointer has really moved.
+  const activeDrag = drag?.moved ? drag : null;
+  const dragFrom = activeDrag?.from ?? null;
+
   return (
-    <div className={styles.board}>
-      {RANKS_TOP_TO_BOTTOM.flatMap((rank) =>
-        BOARD_INDEXES.map((file) => (
-          <BoardSquare
-            key={squareName({ file, rank })}
-            square={{ file, rank }}
-            showRank={file === 0}
-            showFile={rank === 0}
-          />
-        )),
+    <div className={styles.game}>
+      <div className={styles.boardArea}>
+        <div className={styles.board}>
+          {RANKS_TOP_TO_BOTTOM.flatMap((rank) =>
+            BOARD_INDEXES.map((file) => {
+              const square = { file, rank };
+              const piece = getPiece(board, square);
+              const isPieceHidden = isSquare(dragFrom, square);
+              const isSelected = isSquare(selected, square) || isPieceHidden;
+              const shade = isLightSquare(square) ? styles.light : styles.dark;
+
+              return (
+                <button
+                  key={squareName(square)}
+                  type="button"
+                  className={`${styles.square} ${shade} ${isSelected ? styles.selected : ""}`}
+                  aria-label={squareName(square)}
+                  aria-pressed={isSelected}
+                  // Read back by usePieceDrag to find the square under the pointer.
+                  data-file={file}
+                  data-rank={rank}
+                  onClick={() => selectSquare(square)}
+                  onPointerDown={(event) =>
+                    handleSquarePointerDown(square, event)
+                  }
+                >
+                  {file === 0 && (
+                    <span className={`${styles.label} ${styles.rank}`}>
+                      {rankName(rank)}
+                    </span>
+                  )}
+                  {rank === 0 && (
+                    <span className={`${styles.label} ${styles.file}`}>
+                      {fileName(file)}
+                    </span>
+                  )}
+                  {piece && !isPieceHidden && <Piece piece={piece} />}
+                </button>
+              );
+            }),
+          )}
+        </div>
+      </div>
+
+      <aside className={styles.side}>
+        <NewGameButton onClick={newGame} />
+      </aside>
+
+      {activeDrag && (
+        <DragGhost
+          piece={activeDrag.piece}
+          x={activeDrag.x}
+          y={activeDrag.y}
+          size={activeDrag.size}
+        />
       )}
     </div>
   );

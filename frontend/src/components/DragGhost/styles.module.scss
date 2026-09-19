@@ -1,0 +1,8 @@
+// Fixed to the screen so it can float above everything. Piece fills it.
+.ghost {
+  position: fixed;
+  z-index: 1000;
+  // Let the pointer "see through" it, so the square underneath can be found.
+  pointer-events: none;
+  filter: drop-shadow(0 4px 6px rgb(0 0 0 / 0.4));
+}

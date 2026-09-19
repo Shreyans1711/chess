@@ -1,0 +1,33 @@
+$piece-set: "cburnett";
+
+// Maps our piece names to the file-name codes used by the SVG set.
+$colors: (
+  "white": "w",
+  "black": "b",
+);
+$types: (
+  "pawn": "P",
+  "knight": "N",
+  "bishop": "B",
+  "rook": "R",
+  "queen": "Q",
+  "king": "K",
+);
+
+.piece {
+  position: absolute;
+  inset: 0;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  user-select: none;
+}
+
+// Generates .white-pawn, .black-king, ... one class per piece.
+@each $color, $c in $colors {
+  @each $type, $t in $types {
+    .#{$color}-#{$type} {
+      background-image: url("/pieces/#{$piece-set}/#{$c}#{$t}.svg");
+    }
+  }
+}
