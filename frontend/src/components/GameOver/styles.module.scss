@@ -1,0 +1,36 @@
+// Dims the board and centres the result card on top of it.
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10; // above the pieces and square labels
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background-color: rgb(0 0 0 / 0.55);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(100%, 280px);
+  padding: 24px;
+  border-radius: 12px;
+  background-color: #262522; // chess.com's dark panel
+  color: #ffffff;
+  text-align: center;
+  box-shadow: 0 10px 25px rgb(0 0 0 / 0.5);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+}
+
+.reason {
+  margin: 0 0 12px;
+  color: #bababa;
+  text-transform: capitalize;
+}

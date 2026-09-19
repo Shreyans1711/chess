@@ -31,7 +31,9 @@ $dark: var(--color-square-dark);
 }
 
 // Square, shrinks to fit small screens, capped on large ones.
+// `relative` so the game-over overlay can cover exactly the board.
 .board {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   width: 100%;

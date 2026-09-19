@@ -1,9 +1,22 @@
-import type { Board, Square } from "@/components/Board/types";
-import { getAllSquares, getPiece, movePiece } from "@/components/Board/utils";
+import type { Board, MoveResult, Square } from "@/components/Board/types";
+import {
+  getAllSquares,
+  getPiece,
+  isLightSquare,
+  movePiece,
+} from "@/components/Board/utils";
 import { Color, PieceType } from "@/components/Piece/types";
 import { getOpponent } from "@/components/Piece/utils";
+import { FIFTY_MOVE_HALFMOVES, REPETITION_LIMIT } from "./constants";
 import { PIECE_RULES } from "./pieces";
-import type { PieceRule, SquareTest } from "./types";
+import {
+  DrawReason,
+  GameStatus,
+  type GameHistory,
+  type GameOutcome,
+  type PieceRule,
+  type SquareTest,
+} from "./types";
 
 export function fileDistance(from: Square, to: Square): number {
   return Math.abs(to.file - from.file);
@@ -103,4 +116,115 @@ export function isValidTarget(board: Board, from: Square, to: Square): boolean {
   }
 
   return !isInCheck(movePiece(board, from, to).board, piece.color);
+}
+
+/** Does `color` have at least one piece that can move? */
+function hasAnyMove(board: Board, color: Color): boolean {
+  return getAllSquares().some(
+    (square) =>
+      getPiece(board, square)?.color === color &&
+      canThePieceMove(board, square),
+  );
+}
+
+/**
+ * A string that is equal for two positions exactly when they count as the
+ * same for repetition. TODO: castling rights and the en passant square must
+ * join the key once those rules exist.
+ */
+function getPositionKey(board: Board, turn: Color): string {
+  const cells = board
+    .flat()
+    .map((piece) => (piece ? `${piece.color[0]}${piece.type}` : "-"));
+  return `${turn} ${cells.join(",")}`;
+}
+
+export function createHistory(board: Board, turn: Color): GameHistory {
+  return { halfmoveClock: 0, positionKeys: [getPositionKey(board, turn)] };
+}
+
+/**
+ * The history after the piece on `from` made `result` (a move from `before`),
+ * leaving `turn` to move. A pawn move or capture can never be undone, so it
+ * restarts both the clock and the list of positions.
+ */
+export function recordMove(
+  history: GameHistory,
+  before: Board,
+  from: Square,
+  result: MoveResult,
+  turn: Color,
+): GameHistory {
+  const key = getPositionKey(result.board, turn);
+  const isIrreversible =
+    getPiece(before, from)?.type === PieceType.Pawn || result.captured !== null;
+
+  return isIrreversible
+    ? { halfmoveClock: 0, positionKeys: [key] }
+    : {
+        halfmoveClock: history.halfmoveClock + 1,
+        positionKeys: [...history.positionKeys, key],
+      };
+}
+
+/**
+ * Neither side could ever checkmate: bare kings, a lone knight or bishop,
+ * or only bishops that all stand on the same colour of square.
+ */
+function hasInsufficientMaterial(board: Board): boolean {
+  const pieces = getAllSquares().flatMap((square) => {
+    const piece = getPiece(board, square);
+    return piece && piece.type !== PieceType.King ? [{ piece, square }] : [];
+  });
+
+  if (pieces.length === 0) return true;
+  if (pieces.every(({ piece }) => piece.type === PieceType.Bishop)) {
+    return (
+      new Set(pieces.map(({ square }) => isLightSquare(square))).size === 1
+    );
+  }
+  return pieces.length === 1 && pieces[0].piece.type === PieceType.Knight;
+}
+
+/** The draw that applies while the player to move still has moves, if any. */
+function getDrawReason(
+  board: Board,
+  turn: Color,
+  history: GameHistory,
+): DrawReason | null {
+  if (hasInsufficientMaterial(board)) return DrawReason.InsufficientMaterial;
+  if (history.halfmoveClock >= FIFTY_MOVE_HALFMOVES) {
+    return DrawReason.FiftyMoveRule;
+  }
+
+  const key = getPositionKey(board, turn);
+  const occurrences = history.positionKeys.filter((k) => k === key).length;
+  return occurrences >= REPETITION_LIMIT
+    ? DrawReason.ThreefoldRepetition
+    : null;
+}
+
+/** Where the game stands for the player about to move (`turn`). */
+export function getGameOutcome(
+  board: Board,
+  turn: Color,
+  history: GameHistory,
+): GameOutcome {
+  const inCheck = isInCheck(board, turn);
+  const canMove = hasAnyMove(board, turn);
+
+  // Checkmate outranks every draw rule, even one that also applies.
+  if (!canMove && inCheck) {
+    return { status: GameStatus.Checkmate, drawReason: null };
+  }
+
+  const drawReason = canMove
+    ? getDrawReason(board, turn, history)
+    : DrawReason.Stalemate;
+  if (drawReason) return { status: GameStatus.Draw, drawReason };
+
+  return {
+    status: inCheck ? GameStatus.Check : GameStatus.Playing,
+    drawReason: null,
+  };
 }

@@ -2,6 +2,8 @@
 
 import type { PointerEvent } from "react";
 import { DragGhost } from "@/components/DragGhost";
+import { GameOver } from "@/components/GameOver";
+import { GameStatus } from "@/components/GameStatus";
 import { NewGameButton } from "@/components/NewGameButton";
 import { Piece } from "@/components/Piece";
 import { useGame } from "@/hooks/useGame";
@@ -20,8 +22,18 @@ import {
 
 /** Owns the game state and lays out the board with its side panel. */
 export function Board() {
-  const { board, selected, canPickUp, selectSquare, dropPiece, newGame } =
-    useGame();
+  const {
+    board,
+    selected,
+    turn,
+    status,
+    drawReason,
+    isGameOver,
+    canPickUp,
+    selectSquare,
+    dropPiece,
+    newGame,
+  } = useGame();
   const { drag, startDrag } = usePieceDrag(dropPiece);
 
   function handleSquarePointerDown(
@@ -87,10 +99,19 @@ export function Board() {
               );
             }),
           )}
+          {isGameOver && (
+            <GameOver
+              status={status}
+              drawReason={drawReason}
+              turn={turn}
+              onNewGame={newGame}
+            />
+          )}
         </div>
       </div>
 
       <aside className={styles.side}>
+        <GameStatus status={status} drawReason={drawReason} turn={turn} />
         <NewGameButton onClick={newGame} />
       </aside>
 

@@ -8,7 +8,14 @@ import {
 } from "@/components/Board/utils";
 import { Color } from "@/components/Piece/types";
 import { getOpponent } from "@/components/Piece/utils";
-import { canThePieceMove, isValidTarget } from "@/rules/utils";
+import { GameStatus } from "@/rules/types";
+import {
+  canThePieceMove,
+  createHistory,
+  getGameOutcome,
+  isValidTarget,
+  recordMove,
+} from "@/rules/utils";
 
 /** All the state of one game, and the actions that change it. */
 export function useGame() {
@@ -16,17 +23,29 @@ export function useGame() {
   const [selected, setSelected] = useState<Square | null>(null);
   const [turn, setTurn] = useState(Color.White);
 
+  const [history, setHistory] = useState(() => createHistory(board, turn));
+
+  const { status, drawReason } = getGameOutcome(board, turn, history);
+  const isGameOver =
+    status === GameStatus.Checkmate || status === GameStatus.Draw;
+
   /** Is there a piece on `square` that the player to move is able to move? */
   function canPickUp(square: Square): boolean {
     return (
-      getPiece(board, square)?.color === turn && canThePieceMove(board, square)
+      !isGameOver &&
+      getPiece(board, square)?.color === turn &&
+      canThePieceMove(board, square)
     );
   }
 
   // Plays the move and hands the turn to the other player.
   function playMove(from: Square, to: Square) {
-    setBoard(movePiece(board, from, to).board);
-    setTurn(getOpponent(turn));
+    const result = movePiece(board, from, to);
+    const nextTurn = getOpponent(turn);
+
+    setBoard(result.board);
+    setTurn(nextTurn);
+    setHistory(recordMove(history, board, from, result, nextTurn));
     setSelected(null);
   }
 
@@ -50,10 +69,24 @@ export function useGame() {
   }
 
   function newGame() {
-    setBoard(createStartingBoard());
+    const startingBoard = createStartingBoard();
+
+    setBoard(startingBoard);
     setSelected(null);
     setTurn(Color.White);
+    setHistory(createHistory(startingBoard, Color.White));
   }
 
-  return { board, selected, turn, canPickUp, selectSquare, dropPiece, newGame };
+  return {
+    board,
+    selected,
+    turn,
+    status,
+    drawReason,
+    isGameOver,
+    canPickUp,
+    selectSquare,
+    dropPiece,
+    newGame,
+  };
 }

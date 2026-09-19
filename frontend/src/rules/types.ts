@@ -25,3 +25,35 @@ export enum PawnStartRank {
   White = 1,
   Black = 6,
 }
+
+export enum GameStatus {
+  Playing = "playing",
+  Check = "check",
+  Checkmate = "checkmate",
+  Draw = "draw",
+}
+
+/** Why a game ended in a draw. Stalemate is a draw, not a separate result. */
+export enum DrawReason {
+  Stalemate = "stalemate",
+  FiftyMoveRule = "the fifty-move rule",
+  ThreefoldRepetition = "threefold repetition",
+  InsufficientMaterial = "insufficient material",
+}
+
+/** How a game stands: `drawReason` is set exactly when `status` is Draw. */
+export type GameOutcome = {
+  status: GameStatus;
+  drawReason: DrawReason | null;
+};
+
+/** What the draw rules need to remember about the moves played so far. */
+export type GameHistory = {
+  /** Moves since the last pawn move or capture, counting each side's move. */
+  halfmoveClock: number;
+  /**
+   * Keys of the positions reached since the last pawn move or capture (a
+   * position cannot repeat across one). The last key is the current position.
+   */
+  positionKeys: string[];
+};
