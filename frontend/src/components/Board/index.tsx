@@ -6,6 +6,7 @@ import { GameOver } from "@/components/GameOver";
 import { GameStatus } from "@/components/GameStatus";
 import { NewGameButton } from "@/components/NewGameButton";
 import { Piece } from "@/components/Piece";
+import { PromotionPicker } from "@/components/PromotionPicker";
 import { useGame } from "@/hooks/useGame";
 import { usePieceDrag } from "@/hooks/usePieceDrag";
 import { BOARD_INDEXES, RANKS_TOP_TO_BOTTOM } from "./constants";
@@ -29,9 +30,12 @@ export function Board() {
     status,
     drawReason,
     isGameOver,
+    isPromoting,
     canPickUp,
     selectSquare,
     dropPiece,
+    completePromotion,
+    cancelPromotion,
     newGame,
   } = useGame();
   const { drag, startDrag } = usePieceDrag(dropPiece);
@@ -98,6 +102,13 @@ export function Board() {
                 </button>
               );
             }),
+          )}
+          {isPromoting && (
+            <PromotionPicker
+              color={turn}
+              onSelect={completePromotion}
+              onCancel={cancelPromotion}
+            />
           )}
           {isGameOver && (
             <GameOver

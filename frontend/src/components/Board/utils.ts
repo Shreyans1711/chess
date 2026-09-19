@@ -1,7 +1,7 @@
 import { getStartingPiece } from "@/components/Piece/utils";
 import type { Piece } from "@/components/Piece/types";
 import { BOARD_INDEXES, FILE_NAMES } from "./constants";
-import type { Board, MoveResult, Square } from "./types";
+import type { Board, Move, MoveResult, Square } from "./types";
 
 export function fileName(file: number): string {
   return FILE_NAMES[file];
@@ -46,12 +46,25 @@ export function getPiece(board: Board, { file, rank }: Square): Piece | null {
   return board[rank][file];
 }
 
+/** Returns a NEW board with `piece` standing on `square`. */
+export function setPiece(
+  board: Board,
+  square: Square,
+  piece: Piece | null,
+): Board {
+  return board.map((row, rank) =>
+    row.map((cell, file) =>
+      isSameSquare({ file, rank }, square) ? piece : cell,
+    ),
+  );
+}
+
 /**
  * Moves the piece on `from` to `to`. No rules yet: any piece may go to any
  * square. Whatever stood on `to` is overwritten and reported as `captured`.
  * Returns a NEW board; the original is untouched.
  */
-export function movePiece(board: Board, from: Square, to: Square): MoveResult {
+export function movePiece(board: Board, { from, to }: Move): MoveResult {
   const piece = getPiece(board, from);
   if (!piece || isSameSquare(from, to)) return { board, captured: null };
 

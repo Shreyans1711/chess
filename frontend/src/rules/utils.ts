@@ -1,21 +1,34 @@
-import type { Board, MoveResult, Square } from "@/components/Board/types";
+import type { Board, Move, MoveResult, Square } from "@/components/Board/types";
 import {
   getAllSquares,
   getPiece,
   isLightSquare,
+  isSameSquare,
   movePiece,
+  setPiece,
+  squareName,
 } from "@/components/Board/utils";
 import { Color, PieceType } from "@/components/Piece/types";
 import { getOpponent } from "@/components/Piece/utils";
-import { FIFTY_MOVE_HALFMOVES, REPETITION_LIMIT } from "./constants";
-import { PIECE_RULES } from "./pieces";
 import {
+  BACK_RANK,
+  FIFTY_MOVE_HALFMOVES,
+  PROMOTION_RANK,
+  REPETITION_LIMIT,
+  ROOK_CASTLE_FILE,
+  ROOK_HOME_FILE,
+} from "./constants";
+import { PIECE_RULES } from "./pieceRules";
+import {
+  CastlingSide,
   DrawReason,
   GameStatus,
+  type CastlingRights,
   type GameHistory,
   type GameOutcome,
+  type MoveContext,
+  type MoveTest,
   type PieceRule,
-  type SquareTest,
 } from "./types";
 
 export function fileDistance(from: Square, to: Square): number {
@@ -56,12 +69,12 @@ export function isPathClear(board: Board, from: Square, to: Square): boolean {
  * For every piece except the pawn, moving and capturing work the same way:
  * it may go anywhere it attacks, unless one of its own pieces is there.
  */
-export function createRule(attacks: SquareTest): PieceRule {
+export function createRule(attacks: MoveTest): PieceRule {
   return {
     attacks,
-    isValidTarget: (board, from, to) =>
-      attacks(board, from, to) &&
-      getPiece(board, to)?.color !== getPiece(board, from)?.color,
+    isValidTarget: (board, move) =>
+      attacks(board, move) &&
+      getPiece(board, move.to)?.color !== getPiece(board, move.from)?.color,
   };
 }
 
@@ -70,8 +83,14 @@ export function createRule(attacks: SquareTest): PieceRule {
  * it is blocked in, pinned against its king, or (for the king) every
  * square around it is attacked or occupied.
  */
-export function canThePieceMove(board: Board, from: Square): boolean {
-  return getAllSquares().some((to) => isValidTarget(board, from, to));
+export function canThePieceMove(
+  board: Board,
+  from: Square,
+  context: MoveContext,
+): boolean {
+  return getAllSquares().some((to) =>
+    isValidTarget(board, { from, to }, context),
+  );
 }
 
 /** Is `square` attacked by any piece of colour `by`? */
@@ -84,7 +103,7 @@ export function isSquareAttacked(
     const piece = getPiece(board, from);
     return (
       piece?.color === by &&
-      PIECE_RULES[piece.type].attacks(board, from, square)
+      PIECE_RULES[piece.type].attacks(board, { from, to: square })
     );
   });
 }
@@ -109,55 +128,201 @@ export function isInCheck(board: Board, color: Color): boolean {
  * check. That second part is what keeps a pinned piece on its line, and
  * stops the king from stepping onto an attacked square.
  */
-export function isValidTarget(board: Board, from: Square, to: Square): boolean {
-  const piece = getPiece(board, from);
-  if (!piece || !PIECE_RULES[piece.type].isValidTarget(board, from, to)) {
+export function isValidTarget(
+  board: Board,
+  move: Move,
+  context: MoveContext,
+): boolean {
+  const piece = getPiece(board, move.from);
+  if (!piece || !PIECE_RULES[piece.type].isValidTarget(board, move, context)) {
     return false;
   }
 
-  return !isInCheck(movePiece(board, from, to).board, piece.color);
+  return !isInCheck(applyMove(board, move).board, piece.color);
+}
+
+/** Would this move take a pawn to the last rank? */
+export function isPromotionMove(board: Board, { from, to }: Move): boolean {
+  const piece = getPiece(board, from);
+  return (
+    piece?.type === PieceType.Pawn && to.rank === PROMOTION_RANK[piece.color]
+  );
+}
+
+/**
+ * Plays the move on a copy of the board. This is `movePiece`, plus the moves
+ * that change more than the piece itself:
+ * - castling (a king travelling two files): its rook jumps to the other
+ *   side of it;
+ * - en passant (a pawn stepping diagonally onto an empty square): the pawn it
+ *   passed is removed, and reported as `captured`;
+ * - promotion (a pawn reaching the last rank): pass `promotion` and the
+ *   pawn becomes that piece.
+ */
+export function applyMove(
+  board: Board,
+  move: Move,
+  promotion?: PieceType,
+): MoveResult {
+  const { from, to } = move;
+  const piece = getPiece(board, from);
+  const result = movePiece(board, move);
+  if (!piece) return result;
+
+  let newBoard = result.board;
+  let captured = result.captured;
+
+  if (
+    piece.type === PieceType.Pawn &&
+    from.file !== to.file &&
+    !getPiece(board, to)
+  ) {
+    const passedPawn = { file: to.file, rank: from.rank };
+    captured = getPiece(board, passedPawn);
+    newBoard = setPiece(newBoard, passedPawn, null);
+  }
+
+  if (piece.type === PieceType.King && fileDistance(from, to) === 2) {
+    const side =
+      to.file > from.file ? CastlingSide.KingSide : CastlingSide.QueenSide;
+    const rookFrom = { file: ROOK_HOME_FILE[side], rank: from.rank };
+    const rookTo = { file: ROOK_CASTLE_FILE[side], rank: from.rank };
+    newBoard = movePiece(newBoard, { from: rookFrom, to: rookTo }).board;
+  }
+
+  if (promotion) {
+    newBoard = setPiece(newBoard, to, { type: promotion, color: piece.color });
+  }
+
+  return { board: newBoard, captured };
+}
+
+/**
+ * The castling rights that remain after a move from `from` to `to`. A right
+ * goes when its king moves, or when anything moves from or onto its rook's
+ * home square (the rook moved, or was captured there).
+ */
+function updateCastlingRights(
+  castlingRights: CastlingRights,
+  before: Board,
+  { from, to }: Move,
+): CastlingRights {
+  const mover = getPiece(before, from);
+
+  function remainingRights(color: Color): Record<CastlingSide, boolean> {
+    const kingMoved = mover?.type === PieceType.King && mover.color === color;
+
+    function isKept(side: CastlingSide): boolean {
+      const rookHome = { file: ROOK_HOME_FILE[side], rank: BACK_RANK[color] };
+      return (
+        castlingRights[color][side] &&
+        !kingMoved &&
+        !isSameSquare(from, rookHome) &&
+        !isSameSquare(to, rookHome)
+      );
+    }
+
+    return {
+      [CastlingSide.KingSide]: isKept(CastlingSide.KingSide),
+      [CastlingSide.QueenSide]: isKept(CastlingSide.QueenSide),
+    };
+  }
+
+  return {
+    [Color.White]: remainingRights(Color.White),
+    [Color.Black]: remainingRights(Color.Black),
+  };
+}
+
+/**
+ * The square a pawn skips over when it advances two ranks (e3 for e2-e4),
+ * which an enemy pawn may capture on the very next move. Null for any other
+ * move.
+ */
+function getEnPassantTarget(before: Board, { from, to }: Move): Square | null {
+  const isDoublePush =
+    getPiece(before, from)?.type === PieceType.Pawn &&
+    rankDistance(from, to) === 2;
+
+  return isDoublePush
+    ? { file: from.file, rank: (from.rank + to.rank) / 2 }
+    : null;
+}
+
+/** The special-move state after `move` was played from the `before` board. */
+export function updateMoveContext(
+  context: MoveContext,
+  before: Board,
+  move: Move,
+): MoveContext {
+  return {
+    castlingRights: updateCastlingRights(context.castlingRights, before, move),
+    enPassantTarget: getEnPassantTarget(before, move),
+  };
 }
 
 /** Does `color` have at least one piece that can move? */
-function hasAnyMove(board: Board, color: Color): boolean {
+function hasAnyMove(board: Board, color: Color, context: MoveContext): boolean {
   return getAllSquares().some(
     (square) =>
       getPiece(board, square)?.color === color &&
-      canThePieceMove(board, square),
+      canThePieceMove(board, square, context),
   );
 }
 
 /**
  * A string that is equal for two positions exactly when they count as the
- * same for repetition. TODO: castling rights and the en passant square must
- * join the key once those rules exist.
+ * same for repetition. The en passant square counts even when no pawn can
+ * actually use it, so a position reached right after a two-square push is
+ * never treated as a repeat of one reached any other way (a small deviation
+ * from the official rule: it can only delay a repetition draw, never cause one).
  */
-function getPositionKey(board: Board, turn: Color): string {
+function getPositionKey(
+  board: Board,
+  turn: Color,
+  context: MoveContext,
+): string {
   const cells = board
     .flat()
     .map((piece) => (piece ? `${piece.color[0]}${piece.type}` : "-"));
-  return `${turn} ${cells.join(",")}`;
+  const rights = Object.values(context.castlingRights)
+    .flatMap((sides) => Object.values(sides))
+    .map(Number);
+  const enPassant = context.enPassantTarget
+    ? squareName(context.enPassantTarget)
+    : "-";
+  return `${turn} ${cells.join(",")} ${rights.join("")} ${enPassant}`;
 }
 
-export function createHistory(board: Board, turn: Color): GameHistory {
-  return { halfmoveClock: 0, positionKeys: [getPositionKey(board, turn)] };
+export function createHistory(
+  board: Board,
+  turn: Color,
+  context: MoveContext,
+): GameHistory {
+  return {
+    halfmoveClock: 0,
+    positionKeys: [getPositionKey(board, turn, context)],
+  };
 }
 
 /**
- * The history after the piece on `from` made `result` (a move from `before`),
- * leaving `turn` to move. A pawn move or capture can never be undone, so it
- * restarts both the clock and the list of positions.
+ * The history after `move` (played from the `before` board) produced `result`,
+ * leaving `turn` to move, with `context` as the new special-move state. A pawn
+ * move or capture can never be undone, so it restarts both the clock and the
+ * list of positions.
  */
 export function recordMove(
   history: GameHistory,
   before: Board,
-  from: Square,
+  move: Move,
   result: MoveResult,
   turn: Color,
+  context: MoveContext,
 ): GameHistory {
-  const key = getPositionKey(result.board, turn);
+  const key = getPositionKey(result.board, turn, context);
   const isIrreversible =
-    getPiece(before, from)?.type === PieceType.Pawn || result.captured !== null;
+    getPiece(before, move.from)?.type === PieceType.Pawn ||
+    result.captured !== null;
 
   return isIrreversible
     ? { halfmoveClock: 0, positionKeys: [key] }
@@ -187,17 +352,14 @@ function hasInsufficientMaterial(board: Board): boolean {
 }
 
 /** The draw that applies while the player to move still has moves, if any. */
-function getDrawReason(
-  board: Board,
-  turn: Color,
-  history: GameHistory,
-): DrawReason | null {
+function getDrawReason(board: Board, history: GameHistory): DrawReason | null {
   if (hasInsufficientMaterial(board)) return DrawReason.InsufficientMaterial;
   if (history.halfmoveClock >= FIFTY_MOVE_HALFMOVES) {
     return DrawReason.FiftyMoveRule;
   }
 
-  const key = getPositionKey(board, turn);
+  // The last key is always the current position.
+  const key = history.positionKeys[history.positionKeys.length - 1];
   const occurrences = history.positionKeys.filter((k) => k === key).length;
   return occurrences >= REPETITION_LIMIT
     ? DrawReason.ThreefoldRepetition
@@ -209,9 +371,10 @@ export function getGameOutcome(
   board: Board,
   turn: Color,
   history: GameHistory,
+  context: MoveContext,
 ): GameOutcome {
   const inCheck = isInCheck(board, turn);
-  const canMove = hasAnyMove(board, turn);
+  const canMove = hasAnyMove(board, turn, context);
 
   // Checkmate outranks every draw rule, even one that also applies.
   if (!canMove && inCheck) {
@@ -219,7 +382,7 @@ export function getGameOutcome(
   }
 
   const drawReason = canMove
-    ? getDrawReason(board, turn, history)
+    ? getDrawReason(board, history)
     : DrawReason.Stalemate;
   if (drawReason) return { status: GameStatus.Draw, drawReason };
 

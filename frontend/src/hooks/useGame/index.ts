@@ -1,20 +1,23 @@
 import { useState } from "react";
-import type { Square } from "@/components/Board/types";
+import type { Move, Square } from "@/components/Board/types";
 import {
   createStartingBoard,
   getPiece,
   isSameSquare,
-  movePiece,
 } from "@/components/Board/utils";
-import { Color } from "@/components/Piece/types";
+import { Color, type PieceType } from "@/components/Piece/types";
 import { getOpponent } from "@/components/Piece/utils";
+import { INITIAL_MOVE_CONTEXT } from "@/rules/constants";
 import { GameStatus } from "@/rules/types";
 import {
+  applyMove,
   canThePieceMove,
   createHistory,
   getGameOutcome,
+  isPromotionMove,
   isValidTarget,
   recordMove,
+  updateMoveContext,
 } from "@/rules/utils";
 
 /** All the state of one game, and the actions that change it. */
@@ -22,10 +25,16 @@ export function useGame() {
   const [board, setBoard] = useState(createStartingBoard);
   const [selected, setSelected] = useState<Square | null>(null);
   const [turn, setTurn] = useState(Color.White);
+  // A pawn move waiting for the player to choose what it becomes.
+  const [pendingPromotion, setPendingPromotion] = useState<Move | null>(null);
 
-  const [history, setHistory] = useState(() => createHistory(board, turn));
+  // Castling rights and the en passant square: what the board can't show.
+  const [context, setContext] = useState(INITIAL_MOVE_CONTEXT);
+  const [history, setHistory] = useState(() =>
+    createHistory(board, turn, context),
+  );
 
-  const { status, drawReason } = getGameOutcome(board, turn, history);
+  const { status, drawReason } = getGameOutcome(board, turn, history, context);
   const isGameOver =
     status === GameStatus.Checkmate || status === GameStatus.Draw;
 
@@ -33,20 +42,43 @@ export function useGame() {
   function canPickUp(square: Square): boolean {
     return (
       !isGameOver &&
+      !pendingPromotion &&
       getPiece(board, square)?.color === turn &&
-      canThePieceMove(board, square)
+      canThePieceMove(board, square, context)
     );
   }
 
   // Plays the move and hands the turn to the other player.
-  function playMove(from: Square, to: Square) {
-    const result = movePiece(board, from, to);
+  function playMove(move: Move, promotion?: PieceType) {
+    const result = applyMove(board, move, promotion);
     const nextTurn = getOpponent(turn);
+    const nextContext = updateMoveContext(context, board, move);
 
     setBoard(result.board);
     setTurn(nextTurn);
-    setHistory(recordMove(history, board, from, result, nextTurn));
+    setContext(nextContext);
+    setHistory(recordMove(history, board, move, result, nextTurn, nextContext));
     setSelected(null);
+    setPendingPromotion(null);
+  }
+
+  // Click and drag both end here with a move already known to be valid. A
+  // pawn reaching the last rank waits until the player picks its new piece.
+  function requestMove(move: Move) {
+    if (isPromotionMove(board, move)) {
+      setPendingPromotion(move);
+      setSelected(null);
+    } else {
+      playMove(move);
+    }
+  }
+
+  function completePromotion(type: PieceType) {
+    if (pendingPromotion) playMove(pendingPromotion, type);
+  }
+
+  function cancelPromotion() {
+    setPendingPromotion(null);
   }
 
   // Click-to-move: first click picks up one of your pieces, second drops it
@@ -55,17 +87,19 @@ export function useGame() {
   function selectSquare(square: Square) {
     if (canPickUp(square)) {
       setSelected(selected && isSameSquare(selected, square) ? null : square);
-    } else if (selected && isValidTarget(board, selected, square)) {
-      playMove(selected, square);
+    } else if (selected) {
+      const move = { from: selected, to: square };
+      if (isValidTarget(board, move, context)) requestMove(move);
     }
   }
 
   // Drag-to-move: the piece is dropped on `to`, or off the board (null),
   // in which case it simply stays where it was.
   function dropPiece(from: Square, to: Square | null) {
-    if (!to || !canPickUp(from) || !isValidTarget(board, from, to)) return;
+    if (!to || !canPickUp(from)) return;
 
-    playMove(from, to);
+    const move = { from, to };
+    if (isValidTarget(board, move, context)) requestMove(move);
   }
 
   function newGame() {
@@ -73,8 +107,10 @@ export function useGame() {
 
     setBoard(startingBoard);
     setSelected(null);
+    setPendingPromotion(null);
     setTurn(Color.White);
-    setHistory(createHistory(startingBoard, Color.White));
+    setContext(INITIAL_MOVE_CONTEXT);
+    setHistory(createHistory(startingBoard, Color.White, INITIAL_MOVE_CONTEXT));
   }
 
   return {
@@ -84,9 +120,12 @@ export function useGame() {
     status,
     drawReason,
     isGameOver,
+    isPromoting: pendingPromotion !== null,
     canPickUp,
     selectSquare,
     dropPiece,
+    completePromotion,
+    cancelPromotion,
     newGame,
   };
 }

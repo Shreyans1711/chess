@@ -1,0 +1,37 @@
+// Dims the board and centres the choices on top of it.
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10; // above the pieces and square labels
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background-color: rgb(0 0 0 / 0.55);
+}
+
+.card {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background-color: #262522; // chess.com's dark panel
+  box-shadow: 0 10px 25px rgb(0 0 0 / 0.5);
+}
+
+// The piece fills its button (see Piece), so the button sets the size.
+.choice {
+  position: relative;
+  width: clamp(44px, 11vw, 72px);
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background-color: var(--color-square-light);
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background-color: #ffffff;
+  }
+}

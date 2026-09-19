@@ -18,6 +18,11 @@ export type Square = {
  */
 export type Board = (Piece | null)[][];
 
+export type Move = {
+  from: Square;
+  to: Square;
+};
+
 /** What a move produces: the new board, plus the piece it removed (if any). */
 export type MoveResult = {
   board: Board;

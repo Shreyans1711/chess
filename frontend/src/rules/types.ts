@@ -1,7 +1,8 @@
-import type { Board, Square } from "@/components/Board/types";
+import type { Board, Move, Square } from "@/components/Board/types";
+import type { Color } from "@/components/Piece/types";
 
-/** Answers a yes/no question about the piece standing on `from`. */
-export type SquareTest = (board: Board, from: Square, to: Square) => boolean;
+/** Answers a yes/no question about a move by the piece standing on `from`. */
+export type MoveTest = (board: Board, move: Move) => boolean;
 
 /** The movement rules of one kind of piece. */
 export type PieceRule = {
@@ -9,9 +10,35 @@ export type PieceRule = {
    * Would this piece capture an enemy standing on `to`? Used to detect
    * check, so it ignores who (if anyone) is on `to`.
    */
-  attacks: SquareTest;
+  attacks: MoveTest;
   /** Can this piece move to `to`, by its own movement rules only? */
-  isValidTarget: SquareTest;
+  isValidTarget: (board: Board, move: Move, context: MoveContext) => boolean;
+};
+
+/** Which side of the board a king castles towards. */
+export enum CastlingSide {
+  KingSide = "kingSide",
+  QueenSide = "queenSide",
+}
+
+/**
+ * Who may still castle, and on which side. A right is lost for good once the
+ * king, or that side's rook, moves (or the rook is captured).
+ */
+export type CastlingRights = Record<Color, Record<CastlingSide, boolean>>;
+
+/**
+ * What a move's legality depends on besides the pieces on the board: the
+ * special moves that need to remember the past.
+ */
+export type MoveContext = {
+  castlingRights: CastlingRights;
+  /**
+   * The square a pawn just skipped over with a two-square push (e3 after
+   * e2-e4), where an enemy pawn may capture it en passant. It only lasts for
+   * the very next move, so it is null otherwise.
+   */
+  enPassantTarget: Square | null;
 };
 
 /** Which way a pawn advances along the ranks. */
