@@ -1,0 +1,12 @@
+$board-max-size: 640px;
+
+// Square, shrinks to fit small screens, capped on large ones.
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  width: 100%;
+  max-width: min(90vw, 90vh, $board-max-size);
+  overflow: hidden;
+  border-radius: 2px;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.2);
+}
