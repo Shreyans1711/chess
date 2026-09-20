@@ -1,6 +1,7 @@
 "use client";
 
 import type { PointerEvent } from "react";
+import { Dice } from "@/components/Dice";
 import { DragGhost } from "@/components/DragGhost";
 import { GameOver } from "@/components/GameOver";
 import { GameStatus } from "@/components/GameStatus";
@@ -31,6 +32,11 @@ export function Board({ variant }: BoardProps) {
     drawReason,
     isGameOver,
     isPromoting,
+    promotionChoices,
+    dice,
+    rollId,
+    started,
+    startGame,
     canPickUp,
     selectSquare,
     dropPiece,
@@ -77,7 +83,7 @@ export function Board({ variant }: BoardProps) {
                 <button
                   key={squareName(square)}
                   type="button"
-                  className={`${styles.square} ${shade} ${isSelected ? styles.selected : ""}`}
+                  className={`${styles.square} ${shade} ${isSelected ? styles.selected : ""} ${dice.length > 0 && canPickUp(square) ? styles.movable : ""}`}
                   aria-label={squareName(square)}
                   aria-pressed={isSelected}
                   // Read back by usePieceDrag to find the square under the pointer.
@@ -106,6 +112,7 @@ export function Board({ variant }: BoardProps) {
           {isPromoting && (
             <PromotionPicker
               color={turn}
+              types={promotionChoices}
               onSelect={completePromotion}
               onCancel={cancelPromotion}
             />
@@ -123,7 +130,18 @@ export function Board({ variant }: BoardProps) {
 
       <aside className={styles.side}>
         <GameStatus status={status} drawReason={drawReason} turn={turn} />
-        <NewGameButton onClick={newGame} />
+        {dice.length > 0 && !isGameOver && (
+          <Dice
+            dice={dice}
+            rollId={rollId}
+            color={turn}
+          />
+        )}
+        {started ? (
+          <NewGameButton onClick={newGame} />
+        ) : (
+          <NewGameButton label="Start game" onClick={startGame} />
+        )}
       </aside>
 
       {activeDrag && (

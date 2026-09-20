@@ -101,3 +101,17 @@ $dark: var(--color-square-dark);
 .dark .label {
   color: $light;
 }
+
+// Dice Chess: a dot marks the pieces the current roll lets you move.
+.movable::after {
+  content: "";
+  position: absolute;
+  top: 6%;
+  right: 6%;
+  z-index: 1;
+  width: 18%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background-color: #81b64c;
+  box-shadow: 0 0 0 2px rgb(0 0 0 / 0.4);
+}

@@ -3,6 +3,7 @@ import { STANDARD_BACK_RANK } from "@/components/Piece/constants";
 import type { PieceType } from "@/components/Piece/types";
 import { createMoveContext } from "@/rules/utils";
 import { createChess960BackRank } from "./chess960";
+import { createDiceChessGame } from "./diceChess";
 import { createStackChessGame } from "./stackChess";
 import type { NewGame, Variant } from "./types";
 
@@ -15,7 +16,7 @@ function createGameFrom(backRank: readonly PieceType[]): NewGame {
 
 const createStandardGame = () => createGameFrom(STANDARD_BACK_RANK);
 
-// Add a game here and it gets its route and its sidebar link. Slots 4-10 are
+// Add a game here and it gets its route and its sidebar link. Slots 5-10 are
 // placeholders for the standard game.
 export const VARIANTS: Variant[] = [
   { 
@@ -33,7 +34,13 @@ export const VARIANTS: Variant[] = [
     name: "Stack Chess",
     createGame: createStackChessGame,
   },
-  ...[4, 5, 6, 7, 8, 9, 10].map((n) => ({
+  {
+    slug: "dice-chess",
+    name: "Dice Chess",
+    createGame: createDiceChessGame,
+    usesDice: true,
+  },
+  ...[5, 6, 7, 8, 9, 10].map((n) => ({
     slug: `variant-${n}`,
     name: "Original",
     createGame: createStandardGame,

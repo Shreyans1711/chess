@@ -8,6 +8,8 @@ function getMessage({ status, drawReason, turn }: GameStatusProps): string {
   switch (status) {
     case Status.Checkmate:
       return `Checkmate, ${capitalize(getOpponent(turn))} wins`;
+    case Status.KingCaptured:
+      return `King captured, ${capitalize(getOpponent(turn))} wins`;
     case Status.Draw:
       return `Draw by ${drawReason}`;
     case Status.Check:

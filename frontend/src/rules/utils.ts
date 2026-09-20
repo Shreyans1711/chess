@@ -379,6 +379,19 @@ export function createHistory(
   };
 }
 
+/** The history after the player to move passes: nothing on the board changes. */
+export function recordPass(
+  history: GameHistory,
+  board: Board,
+  turn: Color,
+  context: MoveContext,
+): GameHistory {
+  return {
+    halfmoveClock: history.halfmoveClock + 1,
+    positionKeys: [...history.positionKeys, getPositionKey(board, turn, context)],
+  };
+}
+
 /**
  * The history after `move` (played from the `before` board) produced `result`,
  * leaving `turn` to move, with `context` as the new special-move state. A pawn
@@ -426,8 +439,14 @@ function hasInsufficientMaterial(board: Board): boolean {
 }
 
 /** The draw that applies while the player to move still has moves, if any. */
-function getDrawReason(board: Board, history: GameHistory): DrawReason | null {
-  if (hasInsufficientMaterial(board)) return DrawReason.InsufficientMaterial;
+export function getDrawReason(
+  board: Board,
+  history: GameHistory,
+  { insufficientMaterial = true } = {},
+): DrawReason | null {
+  if (insufficientMaterial && hasInsufficientMaterial(board)) {
+    return DrawReason.InsufficientMaterial;
+  }
   if (history.halfmoveClock >= FIFTY_MOVE_HALFMOVES) {
     return DrawReason.FiftyMoveRule;
   }

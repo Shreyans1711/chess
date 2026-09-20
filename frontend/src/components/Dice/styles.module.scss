@@ -1,0 +1,55 @@
+.dice {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// The piece fills its die (see Piece), so the die sets the size.
+.die {
+  position: relative;
+  flex: 0 0 auto;
+  width: clamp(44px, 10vw, 64px);
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background-color: var(--color-square-light);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+}
+
+@keyframes roll {
+  0% {
+    opacity: 0;
+    transform: translateY(-40px) rotate(-540deg) scale(0.5);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0) rotate(25deg) scale(1.15);
+  }
+  80% {
+    transform: rotate(-10deg) scale(0.95);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+// Each die tumbles in when it is rolled (see ROLL_ANIMATION_MS).
+.die {
+  animation: roll 900ms ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+.used {
+  opacity: 0.3;
+}
+

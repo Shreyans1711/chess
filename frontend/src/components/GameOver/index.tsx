@@ -14,6 +14,12 @@ function getResult({ status, drawReason, turn }: GameOverProps) {
       reason: "by checkmate",
     };
   }
+  if (status === GameStatus.KingCaptured) {
+    return {
+      title: `${capitalize(getOpponent(turn))} wins`,
+      reason: "by capturing the king",
+    };
+  }
   return { title: "Draw", reason: `by ${drawReason}` };
 }
 

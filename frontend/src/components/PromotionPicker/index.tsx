@@ -6,6 +6,7 @@ import type { PromotionPickerProps } from "./types";
 /** Covers the board with the pieces a pawn can promote to. */
 export function PromotionPicker({
   color,
+  types = PROMOTION_TYPES,
   onSelect,
   onCancel,
 }: PromotionPickerProps) {
@@ -18,7 +19,7 @@ export function PromotionPicker({
         // Clicking a choice must not count as clicking away.
         onClick={(event) => event.stopPropagation()}
       >
-        {PROMOTION_TYPES.map((type) => (
+        {types.map((type) => (
           <button
             key={type}
             type="button"

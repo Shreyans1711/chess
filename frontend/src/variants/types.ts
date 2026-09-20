@@ -14,4 +14,6 @@ export type Variant = {
   name: string;
   /** Sets up a game. Called again for every new game. */
   createGame: () => NewGame;
+  /** Each turn is played with three rolled dice (see rules/dice.ts). */
+  usesDice?: boolean;
 };

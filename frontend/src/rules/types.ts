@@ -1,5 +1,5 @@
 import type { Board, Move, Square } from "@/components/Board/types";
-import type { Color } from "@/components/Piece/types";
+import type { Color, PieceType } from "@/components/Piece/types";
 
 /** Answers a yes/no question about a move by the piece standing on `from`. */
 export type MoveTest = (board: Board, move: Move) => boolean;
@@ -67,6 +67,8 @@ export enum GameStatus {
   Playing = "playing",
   Check = "check",
   Checkmate = "checkmate",
+  /** Dice Chess: a king was taken. The player to move is the one who lost. */
+  KingCaptured = "kingCaptured",
   Draw = "draw",
 }
 
@@ -93,4 +95,16 @@ export type GameHistory = {
    * position cannot repeat across one). The last key is the current position.
    */
   positionKeys: string[];
+};
+
+/** A move in Dice Chess, with the piece a pawn promotes to (null if none). */
+export type DiceMove = {
+  move: Move;
+  promotion: PieceType | null;
+};
+
+/** One rolled die: the piece it allows to move, and whether it was played. */
+export type Die = {
+  type: PieceType;
+  used: boolean;
 };
